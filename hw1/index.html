@@ -1,7 +1,360 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Homework 1 index.html here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184/284A Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184/284A: Computer Graphics and Imaging, Spring 2024</h1>
+<h1 align="middle">Homework 1: Rasterizer</h1>
+<h2 align="middle">Kevin Yee & Niranjan Bhatia</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>Give a high-level overview of what you implemented in this homework Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.</p>
+
+<h2 align="middle">Section I: Rasterization</h2>
+
+
+<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+<p>So, to rasterize single color triangles, I essentially followed the steps presented in lecture 2 of using a double for loop
+and then checking if it was within the triangle's points or not.
+<br><br>
+The way I made it efficient was first by setting a bounding box (finding the minimum and maximum x and y values) and setting those as the
+values to iterate through, and then using a helper function to determine if the point was inside or outside of the triangle, also by using the 
+formula listed on the slides. This formula calculates the lines that form the triangles and the relevant normal vectors to see if its in the triangle or not.
+
+I used ChatGPT to help me write up the formula by pasting the formula into ChatGPT as well as the function I had so far.
+I didn't like the way ChatGPT formatted things, and it also re-calculated the boundries of the triangle with every call to the "inside" boolean helper function.
+So, I refactored the helper function to remove some of the constant re-evaluation of the same coefficients of the polynomial that was derrived, and passed in the coefficnets into the function
+instead of passing in everything like I was doing before. I also added an "bool inside" to rasterizer.h just because I think you're supposed to have funcion prototypes in the header files.
+
+<br><br>
+
+So basically, triangles are rasterized by finding the bounding box around the input triangle by finding the maximum x and y values, which I then 
+iterate over all of the values in the matrix and check if they're within the triangle or not. If they are, I fill the pixel (the middle part of the pixel, so +0.5 and +0.5 to x and y).
+This should be no worse than checking/sampling within the bounding box of the triangle since it's only checking the points that are within the bounding box of the triangle as part of the for loop.
+
+</p>
+
+<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/sample1.png" align="middle" width="400px"/>
+        <figcaption align="middle">triangle with sample of 1</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+<br><br>
+So the super-sampling algorithm is basically upscaling the sampling matrix by a perfect square factor to make it so that it's much larger 
+than what the actual array is, and then looping over the 1D sample buffer vector(basically dividing the pixels into subpixels). So then when it comes time to call resolve to framebuffer
+it essentially turn all of the pixels into matrices of size sample_size which are then used to cleverly index into the sample_buffer 1D vector
+which accumulates the color, which is then averaged and put into the actual frame buffer target. <br><br>
+
+To put it succinctly: Make every pixel a matrix, make the sample buffer bend to your will and index into it with smart maths, and then average the values to use in the actual frame buffer.
+
+<br><br>
+
+Supersampling is useful since it reduces the jaggies/artifacting in the image.
+
+<br><br>
+
+The main changes were to how the sample_buffer was sized/resized and how it was indexed into such that we still got the proper submatrices corresponding to the proper pixels (subpixels). Basically had to just change the rate at which we sample the points and increase the size of the array to hold more pixel values.
+So changes were made to the setter function set_sample_rate and set_framebuffer_target functions, and double for loops were placed around functions involving subpixels in
+rasterize triangle and fill pixel to properly index into the sample_buffer vector.
+
+<br>
+Supersampling helped antialias by adding more sample points to average over more values to have more intermediate values that results in better lines.
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/sample1.png" align="middle" width="400px"/>
+        <figcaption align="middle">sample of 1</figcaption>
+      </td>
+      <td>
+        <img src="images/sample4.png" align="middle" width="400px"/>
+        <figcaption align="middle">sample of 4</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/sample9.png" align="middle" width="400px"/>
+        <figcaption align="middle">sample of 9</figcaption>
+      </td>
+      <td>
+        <img src="images/sample16.png" align="middle" width="400px"/>
+        <figcaption align="middle">sample of 16</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+From this it is very clear that as the sample rate increased, the jaggies reduced dramatically. It increased most from 1 to 4, and then the improvements were smaller after.
+
+
+
+
+
+<h3 align="middle">Part 3: Transforms</h3>
+
+For this part, I pretty much looked at lecture 4 and coded the matrices from the following lecture slide. These matrices perform the relevant transformation. 
+Pretty much the only thing to keep in mind was to convert from degrees to radians for the rotation matrix.
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/transform_slides.png" align="middle" width="400px"/>
+        <figcaption align="middle"></figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+
+
+    </tr>
+  </table>
+</div>
+
+The task was to improve the basic robot svg file. To do this, I rotated the legs, arms, and bodies different degrees to make it seem like the man was running as
+can be seen in the below image. 
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/running_man.png" align="middle" width="400px"/>
+        <figcaption align="middle"></figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+
+For this part, I implemented baycentric coordinates in the function called <i>rasterize_interpolated_color_triangle</i>. To do this I implemented the following formula from the following lecture slide.
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/baycentric_cord.png" align="middle" width="400px"/>
+        <figcaption align="middle"></figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+
+Basically what this does is take the color values at the 3 edges of the triangle and weighs each of them to get a color value at the (x,y) coordinate that you sample at based on the distances you are from each point.
+This is what barycentric coordinates is. 
+
+Here is the result of running this:
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/sample7_3.png" align="middle" width="400px"/>
+        <figcaption align="middle"></figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+
+
+<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+<br><br>
+Pixel sampling is quite similar to how rasterization works, (given I mostly copied the same pixel-peeping algorithms that I had before as well as the same loop logic)
+but the main difference being is that it uses the barycentric coordinates to package away the specific location on the texture map that it
+wants to get a texture from (which for some reason is scaled down to 1x1) and then is sent off to the sampling algorithm. It calculates the interpolated uv values given alpha, beta,
+gamma from barycentric coordinates. It then runs nearest or bilinear interpolation to get the color from the texel.
+
+
+<br><br>
+
+
+Nearest sampling is basically just finding the closest texel that corresponds to the one provided by u,v and then grabbing the value that it is, while 
+bilinear interpolation just takes the four nearest texels from that u,v point and interpolates them twice for horizontal, and once for vertical (at least according to the slides and my understanding).
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Bilin1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Bilinear Sample 1</figcaption>
+      </td>
+      <td>
+        <img src="images/Bilin16.png" align="middle" width="400px"/>
+        <figcaption align="middle">Bilinear Sample 16</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/Near1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Near Sample 1</figcaption>
+      </td>
+      <td>
+        <img src="images/Near16.png" align="middle" width="400px"/>
+        <figcaption align="middle">Near Sample 16</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br>
+To me, it seems the most stark contrast between bilinear and nearest is at higher resolutions with high frequency parts of the image where it's a bit "hit or miss" to to speak as to 
+whether or not the fast-changing part of the image will be sampled properly or not. This is a little bit better with bilinear sampling since there's more data to work with, especially at higher supersampling/resolution.
+The white line seems to go away in nearest sampling 16 bc the image is overall less sharp and the red line becomes more wavy and blurry with bilinear sampling.
+
+<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+
+Level sampling involves calculating a level based on how quickly texture coordinates change with a change in screen space. The higher the D level we get, we will sample at points farther in uv space. 
+This is because we want to include information from the larger change in uv space. This leads to smaller objects(farther away being blurred and higher resolution for objects close). As such, if we dont increase the D, 
+it will lead to undersampling and thus aliasing. As such, when you increase the mipmap level, there will be more smoothness.
+
+To do this we first had to calculate the uv coordinates at (x, y+1) and (x+1, y) and then calculate the difference vectors. This led us to calculate the mipmap level
+shown in the below slide.
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/level_D.png" align="middle" width="400px"/>
+        <figcaption align="middle"></figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+Then the only changes needed to be made to the sample_linear is getting the correct mip width and height by initializing a mip object to get the correct u,v coordinates.
+
+In pixel sampling, to achieve antialiasing, you need to come up with methods like supersampling. This leads to increased amount of points you need to sample before downsampling, 
+and as such, can lead to slower rendering speeds. You also need to store the values of the results in framebuffers and as such, can lead to increased memory usage. It is good for antialiasing 
+as you are able to filter out high frequencies and properties like jaggies.
+
+In mipmapping, you are able to increase rendering speeds when you have a high mipmap level depending on your mapping from screen space to texture space as you are sampling from a smaller amount of points
+in texture space. Memory usage increases because you have to store a mipmap for each texture level. It is able to reduce aliasing by limiting the "amount of texture" applied to each sample.
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/L_Zero_P_Nearest.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_Zero & P_Nearest</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/L_Zero_P_Linear.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_Zero & P_Linear</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+From this we can see that resolution will be high because of the level 0 mipmap. With bilinear pixel interpolation, we can see that the second image is slighlty smoother
+and the zoomed in image has smoother transitions - can look at the green.
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/L_Nearest_P_Nearest.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_Nearest & P_Nearest</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/L_Nearest_P_Linear.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_Nearest & P_Linear</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+    </tr>
+  </table>
+</div>
+
+Same as before, we can see that linear pixel interpolation make the image a lower resolution. In my opinion, the 3rd image looks much better than the fourth however and you can see the enchanced features better.
+
+From comparing the first and 3rd images we can see that nearest level definitely "blurs" the pixels and seems to make a bigger difference than pixel interpolation. It makes the overall image slighly more blocky in some places for example the holes in the clock tower. But, it 
+smooths out some features - for example the numbers are "blended" in to the clock tower. It's as if you are seeing the image from a distance. Also the leaves in the bush are blended. And this blockiness is enchanced because of the nearest pixel. 
+From the second and 4th images, changing the linear intepolation from level 0 to nearest level has a large change and makes the pixels much more smooth and blurry.
+
+In conclusion, P_Nearest gives the image more sharpness while nearest level will try to make the image more blurry the farther away it is and will make the overall image lower res.
+
+<h2 align="middle">Section III: Art Competition</h2>
+<p>If you are not participating in the optional art competition, don't worry about this section!</p>
+
+<h3 align="middle">Part 7: Draw something interesting!</h3>
+
+</body>
 </html>
