@@ -213,7 +213,8 @@ Here is the result of running this:
 Pixel sampling is quite similar to how rasterization works, (given I mostly copied the same pixel-peeping algorithms that I had before as well as the same loop logic)
 but the main difference being is that it uses the barycentric coordinates to package away the specific location on the texture map that it
 wants to get a texture from (which for some reason is scaled down to 1x1) and then is sent off to the sampling algorithm. It calculates the interpolated uv values given alpha, beta,
-gamma from barycentric coordinates. It then runs nearest or bilinear interpolation to get the color from the texel.
+gamma from barycentric coordinates. It then runs nearest or bilinear interpolation to get the color from the texel. I used ChatGPT to help me write sample_nearest and sample_bilinear,
+which helped me to do the calculations for the bilinear function, as well as find out the structure of the mipmap.
 
 
 <br><br>
@@ -260,6 +261,8 @@ it will lead to undersampling and thus aliasing. As such, when you increase the 
 
 To do this we first had to calculate the uv coordinates at (x, y+1) and (x+1, y) and then calculate the difference vectors. This led us to calculate the mipmap level
 shown in the below slide.
+
+I used ChatGPT to help with re-writing/re-calculating the barycentric coordinates for the +1 values, as well as clamping the sample and get level functions.
 
 <div align="middle">
   <table style="width=100%">
