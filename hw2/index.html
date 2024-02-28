@@ -1,7 +1,495 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Homework 2 index.html here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    background-color: white;
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+  kbd {
+    color: #121212;
+  }
+</style>
+<title>CS 184 Mesh Edit</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+<script id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2024</h1>
+<h1 align="middle">Project 2: Mesh Edit</h1>
+<h2 align="middle">Kevin Yee & Niranjan Bhatia</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>
+    In this project, we explored different topics in geometric modeling. For problems 1 and 2, we build bezier curves and surfaces using deCasteljau's algorithm. 
+    For problem 3, we implemented Phong shading as a better alternative to flat shading where we computed the normal at a vertex by summing over all the normals of the 
+    faces the vertex is a part of. To do this, we had to use the half edge data structure, and cleverly move across the half edges of each of the faces connecting to the vertex like 
+    a "fan" using the twin() and next() attributes. For question 4, we implemented edge flip where we flipped an edge connecting bordering two triangles to connect the other two vertices. 
+    To make our mesh consistent, we had to reassign a lot of pointers. For question 5, we split an edge. This was similar to question 4, but required ccreating new edges and vertices.
+    We had to use both of these algorithms for question 6, where we implemented loop subdivision which "upsamples" a 3d mesh by subdividing each triangle into 4 triangles by splitting at the midpionts. 
+    The algorithm requires splitting each edge and then flipping the edges that connect an old to a new vertex. The implementation itself is not challenging but requires questions 4 and 5 to be perfectly 
+    implemented. By doing loop subdivision, we can convert polygon meshes to higher resolution and also make edges more smooth. In terms of debugging, the most challenging algorithms were definitely questions 4 
+    and 5 as they required one to be very meticulous in assigning all the attributes of of the vertices, halfedges, and edges. It is very easy to forget one pointer. We actually found a lot of problems
+    while doing question 6 and to find these errors looked at the GUI and talked to TAs in OH and checked edStem. It was actually difficutl to identify where the problem was but once I found out that assigning a pointer
+    improved the subdivision, I assigned all pointers and finished the project. I talk about this more in the individual sections.
+    In this assignment, we found ways to generate curves using individual ponts and even 2d surfaces. Once we have a mesh, we found ways to implement shading, as well as create higher resolution surfaces. It doesn't sound like much,
+    but once you think about it, it's actually a lot!
+</p>
+<br>
+
+
+<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+<h3 align="middle">Part 1: Bezier Curves with 1D de Casteljau Subdivision</h3>
+
+
+<b>
+  Briefly explain de Casteljau's algorithm and how you implemented it in order to evaluate Bezier curves.
+</b>
+<p>
+    The algorithm uses a parameter t to recurisvely/iteratively compute points that are interpolated until it converges onto a single point. In an array of points, [po, p1, p2, ...pn], it computes n-1 points that are linearly
+    interpolated based on the parameter t. It computes a point along the line connecting p0 and p1, p1 and p2, etc. It then interpolates across these points to get n-2 points, and converges to 1 point.
+</p>
+<br>
+
+
+<b>
+  Take a look at the provided .bzc files and create your own Bezier curve with 6 control points of your choosing. Use this Bezier curve for your screenshots below.
+</b>
+<p>
+  <div align="middle">
+    <img src="images/level4.png" align="middle" width="50%">
+  </div>
+</p>
+<!-- Example of including a single figure -->
+
+<br>
+
+<b>
+  Show screenshots of each step / level of the evaluation from the original control points down to the final evaluated point. Press <kbd>E</kbd> to step through. Toggle <kbd>C</kbd> to show the completed Bezier curve as well.
+</b>
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/level0.png" align="middle" width="400px"/>
+        <figcaption>Level 0</figcaption>
+      </td>
+      <td>
+        <img src="images/level1.png" align="middle" width="400px"/>
+        <figcaption>Level 1</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/level2.png" align="middle" width="400px"/>
+        <figcaption>Level 2</figcaption>
+      </td>
+      <td>
+        <img src="images/level3.png" align="middle" width="400px"/>
+        <figcaption>Level 3</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/level4.png" align="middle" width="400px"/>
+        <figcaption>Level 4</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+
+
+<b>
+  Show a screenshot of a slightly different Bezier curve by moving the original control points around and modifying the parameter \(t\) via mouse scrolling.
+</b>
+<div align="middle">
+  <img src="images/slightlydifferent.png" align="middle" width="50%">
+</div>
+<br>
+
+
+<h3 align="middle">Part 2: Bezier Surfaces with Separable 1D de Casteljau</h3>
+<b>
+  Briefly explain how de Casteljau algorithm extends to Bezier surfaces and how you implemented it in order to evaluate Bezier surfaces.
+</b>
+<p>
+    To evaluate a surface position corresponding to (u, v), you first find the interpolated point along each row using de Casteljau using u as the parameter, which corresponds to all the bezier curves
+    in the u direction. This basically gives control points along each column that are evaluated at u. Then you apply de Casteljau's algorithm again using these points to find the interpolated point corresponding to 
+    (u, v). To summarize, after all of the intermediate control points are found from evaluating the previous Bezier curves, the Bezier curve based off of the line created from all the other t points is evaluated again using 1D Casteljau. 
+</p>
+<br>
+
+
+<b>
+  Show a screenshot of bez/teapot.bez (not .dae) evaluated by your implementation.
+</b>
+<p>
+  <div align="middle">
+    <img src="images/teapot.png" align="middle" width="50%">
+  </div>
+</p>
+<br>
+
+
+<h2 align="middle">Section II: Triangle Meshes and Half-Edge Data Structure</h2>
+
+<h3 align="middle">Part 3: Area-Weighted Vertex Normals</h3>
+
+<b>
+  Briefly explain how you implemented the area-weighted vertex normals.
+</b>
+<p>
+    I implemented area-weighted vertex normals by painstakingly reading through a whole bunch of the documentation and then thinking about how I would loop over all of the vertices without double counting before I realized that I could just copy and past the code from the printNeighbourPositions
+    function that was in the documentation that's used to find the next outgoing half edge of the vertex (h = h_twin->next();) which would abstract basically all of my issues away. It basically moves across all the half edges outgoing from the vertex.
+    After that it was basically trivial to get the current vertex's position, find the next vertex's position and subtract them (and also do the same thing with next's next) and then get the normal, add it to the running sum of the normals of the triangle faces around the vertex, and then normalize it.
+</p>
+<br>
+
+
+<b>
+  Show screenshots of dae/teapot.dae (not .bez) comparing teapot shading with and without vertex normals. Use <kbd>Q</kbd> to toggle default flat shading and Phong shading.
+</b>
+<p>
+  <tr align="center">
+    <td>
+      <img src="images/teapot_flat.png" align="middle" width="400px"/>
+      <figcaption>Not Smooth</figcaption>
+    </td>
+  </tr>
+  <tr align="middle">
+    <td>
+      <img src="images/teapot_phong.png" align="middle" width="400px"/>
+      <figcaption>Smooth - you can see towards the left of the teapot the shading is blended together.</figcaption>
+    </td>
+  </tr>
+
+
+</p>
+<br>
+
+
+<h3 align="middle">Part 4: Edge Flip</h3>
+<b>
+  Briefly explain how you implemented the edge flip operation and describe any interesting implementation / debugging tricks you have used.
+</b>
+<p>
+    I drew out the abcd triangles from the website on my iPad and then I asked ChatGPT for how to do it, and I liked the way it first "extracted out" all of the current values
+    (which is what the spec said to do in the first place) and then set everything. I didn't like its naming convention though so I renamed everything with colors instead to match the 
+    drawing I made, and then re-did everything tracing out my logic instead of touching what ChatGPT did since I don't think it has a good grasp on how to do an edge flip. Its style was great though.
+    In essence, all I did was re-arrange pointers. I set my sights on a particular half edge and then began setting its next to other pointers that aligned with my diagram and did so for every single 
+    pointer or else I got weird errors. 
+</p>
+<p>
+  In terms of the process, you first had to get the pointers to all the halfedges, vertices, and faces and then reassign every single pointer. We used the <code> setNeighbors </code> functions to set all the 
+  new attributes of each half edge based on the flip, as can be seen in the diagram below:
+</p>
+<p>
+  After that, you had to reassign the halfedges each vertex points to. This ensures that when you iterate over all the half vertices, they have the right attributes. Finally, you also had to reassign the half edges the faces
+  point to as the faces themselves have "rotated" based on the edge flip.
+</p>
+<br>
+
+
+<b>
+  Show screenshots of the teapot before and after some edge flips.
+</b>
+<p>
+  <tr align="center">
+    <td>
+      <img src="images/teapot.png" align="middle" width="400px"/>
+      <figcaption>One flip</figcaption>
+    </td>
+    <td>
+      <img src="images/teapot_1_flip.png" align="middle" width="400px"/>
+      <figcaption>One flip</figcaption>
+    </td>
+    <td>
+      <img src="images/teapot_multiple_flips.png" align="middle" width="400px"/>
+      <figcaption>Two flip. One can see the dents created from splitting edge connecting two "longer triangles. Below is an explanation from Ed.</figcaption>
+    </td>
+    <td>
+      <img src="images/ed_flip_explanation.png" align="middle" width="400px"/>
+    </td>
+  </tr>
+  <br>
+</p>
+<br>
+
+
+<b>
+    Write about your eventful debugging journey, if you have experienced one.
+</b>
+<p>
+    So I had the same thing as that one guy on Edstem where if I flipped the edge twice it would make it so that one of the faces disappeared, and he said that he fixed it by
+    assigning the faces in a certain way, so I went on and decided to try basically every permutation of setting the faces properly and failed miserably, asked ChatGPT to debug it for me (it only made it worse, by like a lot) 
+    so since that failed I decided to just do it myself (insert Thanos meme here) and read over a bunch of the documentation to try and see what I was missing before I realized a few hours later (after trying a lot more permuations of course) 
+    that the issue was that I simply wasn't setting the half edges faces once again after I'd modified them, and I set the left and right faces to magenta and red again and it worked perfectly. This is because the faces have been reassigned and because of this,
+    it was required to reassign the half edges of the faces so that they point to the right place. When doing question 6, we also realized that we had to assign the half edges of the vertices even if they were not newly created.
+</p>
+<br>
+
+
+<h3 align="middle">Part 5: Edge Split</h3>
+<b>
+  Briefly explain how you implemented the edge split operation and describe any interesting implementation / debugging tricks you have used.
+</b>
+<p>
+    splitEdge was a bit of a pain to write as it was somewhat of a more challenging version of flipEdge. In flipEdge you just had to reassign pointers using the setNeighbors function and set the halfedges at the end. 
+    However for splitEdge you have to create new components, particularly 6 new half edges, 3 new edges, and 3 new faces as can be seen in this rough sketch I drew up: 
+</p>
+<p>
+  <div align="center">
+    <img src="images/splitEdge_sketch.png" align="middle" width="400px">
+    <figcaption> As can be seen, the red and magenta edges are still in the new configuration but have been reassigned. The edge from "c to b" has also been reassigned to "c to v" and 3 new edges have been recreated along 
+      with a lot of halfedges. </figcaption>
+  </div>
+</p>
+<br>
+
+As can be seen in the new configuration there are 4 faces and as such 12 half edges facing towards the new faces. As such, one has to run the <code> setNeighbors </code> function 12 times to reassign the pointers.
+One also has to set the halfedge pointers for the new faces, edges, and vertices. A lot of pointer assignments! 
+
+
+
+<b>
+    Show screenshots of a mesh before and after some edge splits. 
+</b>
+<p>
+  <tr align="center">
+    <td>
+      <img src="images/q5_teapot.png" align="middle" width="400px"/>
+      <figcaption>Before split</figcaption>
+    </td>
+    <td>
+      <img src="images/q5_teapot_edge_split.png" align="middle" width="400px"/>
+      <figcaption>After some edge splits</figcaption>
+    </td>
+  </tr>
+</p>
+<br>
+
+
+<b>
+    Show screenshots of a mesh before and after a combination of both edge splits and edge flips.
+</b>
+<p>
+  <tr align="center">
+    <td>
+      <img src="images/torus_edge_split_flip.png" align="middle" width="400px"/>
+      <figcaption>Split and Flip</figcaption>
+    </td>
+  </tr>
+</p>
+<br>
+
+
+<b>
+    Write about your eventful debugging journey, if you have experienced one.
+</b>
+<p>
+    I was a little confused on when to assign the <code> ->halfedge() </code> pointers and for which objects or if the <code> setNeighbors() </code> function did this for you as I pretty much covered every single halfedge in setNeighbors. After speaking I had
+    to friends and TAs in OH, I just decided to set literally everything, meaning that I set the halfedge attribute for every single face, edge, and vertex. In this way every pointer is definitely set. I also had a big problem where I created new edges and halfedges
+    and set those instead of reusing pre-existing half edges and edges and reassigning those in addition to creating new edges when required. At first I thought this wouldn't be a problem as all the edges will be pointing in the right places and the original vertices will be pointing
+    to those. However, after discussing with a friend, he told me that there might be some other places in the code that would have been pointing to the original edges and half edges and you can't just "ignore" them and replace them. As such, I had to reassign those and after that our 
+    code worked.
+</p>
+<br>
+
+
+<b>
+    If you have implemented support for boundary edges, show screenshots of your implementation properly handling split operations on boundary edges.
+</b>
+<p>
+    YOUR RESPONSE GOES HERE
+</p>
+<br>
+
+
+<h3 align="middle">Part 6: Loop Subdivision for Mesh Upsampling</h3>
+<b>
+  Briefly explain how you implemented the loop subdivision and describe any interesting implementation / debugging tricks you have used.
+</b>
+<p>
+    We pretty much followed what was outlined in the spec. First, we had to calculate all the new positions. For a vertex midpoint, we saved it in the edge->newPosition attribute. we saved the original edge length. 
+    We followed the following weighting strategy from the spec:
+    
+</p>
+
+<p>
+    We also iterated over every vertex, to calculated the new positions of the old vertices. We did the following weighting scheme given in the scheme:
+
+</p>
+
+
+    After doing this, I iterated through the edges and split each edge. To make sure, I only split over the old edges, I saved the length of the edges before split and only did that many iterations. This is because during OH,
+    a TA told me that any new edges will be appended to the end of the edges array. I also had to set the <i> isNew </i> keyword to true for the edges that were added to the new midpoint that weren't along a boundary. This is to indicate that it's a 
+    "blue" edge that connects an old vertex to a new vertex. Also in this process, I recognized that split edge returned a vertex that it adds at the middle of the face. Because we had computed the new positions of these vertex, we
+    in the previous step and stored it in the edge itself I was able to do the assignment <code> v ->newPosition = e->newPosition </code>. After this I iterate over all the edges. I first check if the <i> isNew </i> keyword is true and if so, check if the edge points 
+    from an old to a new vertex using the vertex isNew keyword. If this condition is satisfied, I will flip the edge. Finally, I iterate over every vertex, and assign the <code>  v->position = v->newPosition </code>. This assigns the old vertices as the newPosition
+    was already set before and also assigns the newvertices as the newPosition was set during splitEdge. Finally, I set all the isNew attributes to false to prepare for calling upsample again.
+</p>
+
+<p> 
+    Debugging this method was relatively difficult as there were some errors in both splitEdge and flipEdge that were difficult to see from initial testing. The actual implementation of this method is not too involved other than realizing that you should be able to should only 
+    set the isNew keyword for the edges that were added that were not along a boundary. This is because even though we are adding 3 edges in addition to the initial edge, we don't want to flip an edge alongside a boundary. This took a while to debug. After a complete implementation of this, 
+    we tested the <i> cube.dae </i> file. Comparing the results with the spec, the result matched after the first iteration but then would have a lot of "holes" after more iterations. After contemplating for a while and going to HW party, I realized that it had to be a result of not setting the pointers
+    wholistically. At first, I only set the halfedges for the new faces I added but this time, added half edges for all the faces. I also made sure to set the halfedge of the edge that I didn't add. Finally, the crucial thing that was definitely causing problems in our implementation was setting the halfedge 
+    pointers of all the vertices and not just the new vertex that was inserted. This is because you are connecting new edges to the original vertices and when you iterate over the vertices' half edges, for example when  calculating the new vertex positions, it has to be assigned correctly. I had to make these changes 
+    in both flipEdge and splitEdge. I also got an idea from looking at the halfedges from the GUI.
+</p>
+<br>
+
+
+<b>
+  Take some notes, as well as some screenshots, of your observations on how meshes behave after loop subdivision. What happens to sharp corners and edges? Can you reduce this effect by pre-splitting some edges?
+</b>
+<p>
+  <tr align="center">
+    <td>
+      <img src="images/torus_initial.png" align="middle" width="400px"/>
+      <figcaption>initial image</figcaption>
+    </td>
+    <td>
+      <img src="images/torus_1_loop.png" align="middle" width="400px"/>
+      <figcaption>more edges created and sharp edges are becoming smoother. larger variety of shading from normalization.</figcaption>
+    </td>
+    <td>
+      <img src="images/torus_rounded.png" align="middle" width="400px"/>
+      <figcaption>torus has become completely circular.</figcaption>
+    </td>
+  </tr>
+</p>
+
+To reduce the effect of reducing sharpness, you can do more pre-splitting near sharp edges which will "slow down" the smoothing process. Because there are initially more vertices
+near the sharp edges, the averaging effect will reduce.
+<p>
+  <tr align="center">
+    <td>
+      <img src="images/torus_sharp_edge_initial.png" align="middle" width="400px"/>
+      <figcaption>create more edges near the sharp edge.</figcaption>
+    </td>
+    <td>
+      <img src="images/torus_sharp_edge_final.png" align="middle" width="400px"/>
+      <figcaption>that sharpness near that edge is preserved compared to the other edges which are completely smooth. </figcaption>
+    </td>
+  </tr>
+</p>
+
+<br>
+
+
+<b>
+  Load dae/cube.dae. Perform several iterations of loop subdivision on the cube. Notice that the cube becomes slightly asymmetric after repeated subdivisions. Can you pre-process the cube with edge flips and splits so that the cube subdivides symmetrically? Document these effects and explain why they occur. Also explain how your pre-processing helps alleviate the effects.
+</b>
+
+  Here are a few screenshots showing cube loop subdivision:
+  <p>
+    <tr align="center">
+      <td>
+        <img src="images/cube0.png" align="middle" width="400px"/>
+      </td>
+      <td>
+        <img src="images/cube1.png" align="middle" width="400px"/>
+      </td>
+      <td>
+        <img src="images/cube2.png" align="middle" width="400px"/>
+      </td>
+    </tr>
+  </p>
+  
+
+<p>
+    The reason the cube becomes asymetric is because when you divide the 2 faces into 3 triangles, the triangles are not of equal size. Mainly the triangle that connects the 2 side edges are smaller. As such, when you further divide it kind of like
+    becomes asymetrical in the diagonal direction. As such, you have to perform one edge split along the diagonal edge before as can be seen below:
+
+    <p>
+      <div align="middle">
+        <img src="images/pre_process.png" align="middle" width="50%">
+      </div>
+    </p>
+</p>
+
+<p>
+  Even though the triangles will still not necessarily be the same size, all the 4 directions of the cube will be symmetrical when doing loop division.
+  Here are the results after a few iterations:
+  <p>
+    <div align="middle">
+      <img src="images/q6_cube_sym.png" align="middle" width="50%">
+    </div>
+  </p>
+</p>
+<br>
+
+
+<b>
+    If you have implemented any extra credit extensions, explain what you did and document how they work with screenshots.
+</b>
+<p>
+    YOUR RESPONSE GOES HERE
+</p>
+<br>
+
+
+<h3 align="middle">Part 7 (Optional, Possible Extra Credit)</h3>
+<b>
+    Save your best polygon mesh as partsevenmodel.dae in your docs folder and show us a screenshot of the mesh in your write-up.
+</b>
+<p>
+    YOUR RESPONSE GOES HERE
+</p>
+<br>
+
+
+<b>
+    Include a series of screenshots showing your original mesh and your mesh after one and two rounds of subdivision. If you have used custom shaders, include screenshots of your mesh with those shaders applied as well.
+</b>
+<p>
+    YOUR RESPONSE GOES HERE
+</p>
+<br>
+
+
+<b>
+    Describe what you have done to enhance your mesh beyond the simple humanoid mesh described in the tutorial.
+</b>
+<p>
+    YOUR RESPONSE GOES HERE
+</p>
+<br>
+
+
+</body>
 </html>
